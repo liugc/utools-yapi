@@ -1,0 +1,23 @@
+{
+  "pluginName": "yapi",
+  "description": "yapi",
+  "preload": "preload.js",
+  "version": "0.0.1",
+  "logo": "logo.png",
+  "author": "刘国成",
+  "homepage": "https://github.com/liugc/utools-ttjj",
+  "features": [
+    {
+      "code": "list",
+      "explain": "查找",
+      "icon": "res/view.png",
+      "cmds": ["yapi"]
+    },
+    {
+      "code": "token",
+      "explain": "设置token",
+      "icon": "res/view.png",
+      "cmds": ["yapitoken"]
+    }
+  ]
+}
