@@ -1,7 +1,7 @@
 const http = require("http");
 const querystring = require("querystring");
 
-let lists = [];
+var lists = [];
 
 const _request = (options) => {
   options.headers = options.headers || {};
@@ -16,12 +16,19 @@ const _request = (options) => {
       method: options.method,
       headers: options.headers
     }, (res) => {
-      console.log("--- res ---");
       let rawData = "";
       res.on('data', (chunk) => { rawData += chunk });
       res.on('end', () => {
-        console.log(rawData);
-        resolve(rawData);
+        try {
+          let jsonData = JSON.parse(rawData);
+          if (jsonData.data) {
+            resolve(rawData);
+          } else {
+            reject(rawData);
+          }
+        } catch(e) {
+          resolve(rawData);
+        }
       });
     });
     req.on('error', () => {
@@ -52,20 +59,28 @@ let request = {
 
 const getList = () => {
   return new Promise((resolve, reject) => {
-    request.get("http://yapi.dashuf.com/api/project/list?group_id=20&page=1&limit=100")
+    let project = utools.db.get('project').data;
+    let matchUrl = project.match(/https?:\/\/.+?(com|cn|net|org)/);
+    let matchId = project.match(/group\/(\d+)/);
+    let url = matchUrl[0];
+    let id = matchId[1];
+    request.get(`${url}/api/project/list?group_id=${id}&page=1&limit=100`)
       .then((body) => {
         let list = JSON.parse(body).data.list;
         resolve(list);
       })
       .catch((e) => {
-        reject();
+        reject(e);
       });
   });
 }
 
 const getInterface = (project_id) => {
   return new Promise((resolve, reject) => {
-    request.get(`http://yapi.dashuf.com/api/interface/list?page=1&limit=200&project_id=${project_id}`)
+    let project = utools.db.get('project').data;
+    let matchUrl = project.match(/https?:\/\/.+?(com|cn|net|org)/);
+    let url = matchUrl[0];
+    request.get(`${url}/api/interface/list?page=1&limit=200&project_id=${project_id}`)
       .then((body) => {
         let list = JSON.parse(body).data.list;
         resolve(list);
@@ -77,6 +92,16 @@ const getInterface = (project_id) => {
 }
 
 const getAllInterface = (callbackSetList) => {
+  let project = utools.db.get('project');
+  if (!project) {
+    utools.showNotification("请先输入项目地址");
+    return;
+  }
+  let matchUrl = project.data.match(/https?:\/\/.+?(com|cn|net|org)/);
+  let url;
+  if (matchUrl) {
+    url = matchUrl[0];
+  }
   getList().then((list) => {
     let promiseArr = [];
     list.forEach((item) => {
@@ -92,13 +117,24 @@ const getAllInterface = (callbackSetList) => {
       lists = arr.map((item) => {
         item.description = item.title;
         item.title = item.path;
-        item.url = `http://yapi.dashuf.com/project/${item.project_id}/interface/api/${item._id}`;
+        item.url = `${url}/project/${item.project_id}/interface/api/${item._id}`;
         return item;
       });
-      callbackSetList(lists)
+      if (callbackSetList) {
+        callbackSetList(lists);
+      }
+      let dbLists = utools.db.get('lists');
+      let obj = {
+        _id: 'lists',
+        data: lists
+      };
+      if (dbLists) {
+        obj._rev = dbLists._rev;
+      }
+      utools.db.put(obj);
     });
-  }).catch((e) => {
-    console.log(e);
+  }).catch((err) => {
+    utools.showNotification(JSON.parse(err).errmsg);
   });
 }
 
@@ -114,7 +150,9 @@ window.exports = {
     mode: "list",
     args: {
       enter: (action, callbackSetList) => {
-        if (lists.length > 0) {
+        let dbLists = utools.db.get('lists');
+        if (dbLists && dbLists.data.length > 0) {
+          lists = dbLists.data;
           callbackSetList(lists);
         } else {
           getAllInterface(callbackSetList);
@@ -127,6 +165,16 @@ window.exports = {
         utools.hideMainWindow();
         const url = itemData.url;
         require('electron').shell.openExternal(url);
+        utools.outPlugin();
+      }
+    }
+  },
+  "update": {
+    mode: "none",
+    args: {
+      enter: (action, callbackSetList) => {
+        utools.hideMainWindow();
+        getAllInterface(callbackSetList);
         utools.outPlugin();
       }
     }
@@ -152,7 +200,37 @@ window.exports = {
         }
         utools.db.put(obj);
         utools.outPlugin();
-      }
+      },
+      placeholder: "请输入_yapi_token的cookie值"
+    }
+  },
+  "project": {
+    mode: "list",
+    args: {
+      search: (action, searchWord, callbackSetList) => {
+        callbackSetList([{
+          title: searchWord,
+          description: ''
+        }]);
+      },
+      select: (action, itemData) => {
+        if (!/https?:\/\/.+?(com|cn|net|org)/.test(itemData.title)) {
+          utools.showNotification("请输入正确的项目地址");
+        } else {
+          utools.hideMainWindow();
+          let project = utools.db.get('project');
+          let obj = {
+            _id: 'project',
+            data: itemData.title
+          }
+          if (project) {
+            obj._rev = project._rev;
+          }
+          utools.db.put(obj);
+          utools.outPlugin();
+        }
+      },
+      placeholder: "请输入yapi项目地址"
     }
   }
 }

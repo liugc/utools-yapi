@@ -14,10 +14,22 @@
       "cmds": ["yapi"]
     },
     {
+      "code": "update",
+      "explain": "更新数据",
+      "icon": "res/view.png",
+      "cmds": ["yapiupdate"]
+    },
+    {
       "code": "token",
       "explain": "设置token",
       "icon": "res/view.png",
       "cmds": ["yapitoken"]
+    },
+    {
+      "code": "project",
+      "explain": "设置项目地址",
+      "icon": "res/view.png",
+      "cmds": ["yapiproject"]
     }
   ]
 }
