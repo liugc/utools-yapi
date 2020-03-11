@@ -57,21 +57,47 @@ let request = {
   }
 }
 
-const getList = () => {
+const getProject = (url, id) => {
   return new Promise((resolve, reject) => {
-    let project = utools.db.get('project').data;
-    let matchUrl = project.match(/https?:\/\/.+?(com|cn|net|org)/);
-    let matchId = project.match(/group\/(\d+)/);
-    let url = matchUrl[0];
-    let id = matchId[1];
+    console.log(url, id);
     request.get(`${url}/api/project/list?group_id=${id}&page=1&limit=100`)
       .then((body) => {
         let list = JSON.parse(body).data.list;
+        console.log(list);
         resolve(list);
       })
       .catch((e) => {
         reject(e);
       });
+  })
+}
+
+const getList = () => {
+  return new Promise((resolve, reject) => {
+    let url = utools.db.get('project').data;
+    console.log(url);
+    request.get(`${url}/api/group/list`)
+      .then((body) => {
+        console.log(body);
+        let projects = JSON.parse(body).data;
+        let promiseArr = [];
+        projects.forEach((item) => {
+          promiseArr.push(getProject(url, item._id));
+        });
+        Promise.all(promiseArr).then((data) => {
+          let arr = [];
+          data.forEach((item) => {
+            item.forEach((it) => {
+              arr.push(it);
+            });
+          });
+          resolve(arr);
+        });
+      })
+      .catch((err) => {
+        console.log(err);
+        reject(err);
+      })
   });
 }
 
@@ -94,7 +120,7 @@ const getInterface = (project_id) => {
 const getAllInterface = (callbackSetList) => {
   let project = utools.db.get('project');
   if (!project) {
-    utools.showNotification("请先输入项目地址");
+    utools.showNotification("请先输入yapi地址");
     return;
   }
   let matchUrl = project.data.match(/https?:\/\/.+?(com|cn|net|org)/);
@@ -201,7 +227,7 @@ window.exports = {
         utools.db.put(obj);
         utools.outPlugin();
       },
-      placeholder: "请输入_yapi_token的cookie值"
+      placeholder: "请输入yapi登录后的cookie值"
     }
   },
   "project": {
@@ -214,7 +240,7 @@ window.exports = {
         }]);
       },
       select: (action, itemData) => {
-        if (!/https?:\/\/.+?(com|cn|net|org)/.test(itemData.title)) {
+        if (!/^https?:\/\/.+?(com|cn|net|org)$/.test(itemData.title)) {
           utools.showNotification("请输入正确的项目地址");
         } else {
           utools.hideMainWindow();
