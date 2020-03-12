@@ -1,35 +1,35 @@
 {
   "pluginName": "yapi",
-  "description": "yapi",
+  "description": "yapi接口查看",
   "preload": "preload.js",
   "version": "0.0.1",
   "logo": "logo.png",
   "author": "刘国成",
-  "homepage": "https://github.com/liugc/utools-ttjj",
+  "homepage": "https://github.com/liugc/utools-yapi",
   "features": [
     {
       "code": "list",
       "explain": "查找",
       "icon": "res/view.png",
-      "cmds": ["yapi"]
+      "cmds": ["Yapi"]
     },
     {
       "code": "update",
       "explain": "更新数据",
-      "icon": "res/view.png",
-      "cmds": ["yapiupdate"]
+      "icon": "res/update.png",
+      "cmds": ["YapiUpdate"]
     },
     {
-      "code": "token",
-      "explain": "设置token",
-      "icon": "res/view.png",
-      "cmds": ["yapitoken"]
+      "code": "cookie",
+      "explain": "设置cookie",
+      "icon": "res/cookie.png",
+      "cmds": ["YapiCookie"]
     },
     {
       "code": "project",
       "explain": "设置项目地址",
-      "icon": "res/view.png",
-      "cmds": ["yapiproject"]
+      "icon": "res/url.png",
+      "cmds": ["YapiProject"]
     }
   ]
 }
