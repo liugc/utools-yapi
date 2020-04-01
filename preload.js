@@ -158,7 +158,10 @@ const getAllInterface = (callbackSetList) => {
 
 const filterList = (searchWord, callbackSetList) => {
   let data = lists.filter((item) => {
-    return item.title.indexOf(searchWord) > -1;
+    let title = item.title.toLowerCase();
+    let description = item.description.toLowerCase();
+    let word = searchWord.toLowerCase();
+    return title.indexOf(word) > -1 || description.indexOf(word) > -1;
   });
   callbackSetList(data);
 }
