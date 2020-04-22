@@ -8,8 +8,8 @@ let cookie;
 
 const login = () => {
   return new Promise((resolve, reject) => {
-    let email = utools.db.get('email').data;
-    let password = utools.db.get('password').data;
+    let email = utools.db.get('email');
+    let password = utools.db.get('password');
     if (!email) {
       reject(new Error("请先输入email"));
       return;
@@ -55,26 +55,24 @@ const login = () => {
       reject(err.message);
     });
     req.write(JSON.stringify({
-      email,
-      password
+      email: email.data,
+      password: password.data
     }));
     req.end();
   });
 }
 
-const _request = async (options) => {
+const _request = (options) => {
   options.headers = options.headers || {};
-  if (!cookie) {
-    cookie = await login().catch((err) => {
-      utools.showNotification(err.message);
-    });
-  }
-  if (!cookie) {
-    return;
-  } else {
-    options.headers.Cookie = cookie;
-  }
-  return new Promise((resolve, reject) => {
+  return new Promise(async (resolve, reject) => {
+    if (!cookie) {
+      cookie = await login().catch((err) => {
+        reject(err);
+      });
+    }
+    if (cookie) {
+      options.headers.Cookie = cookie;
+    }
     if (options.url.indexOf("https") === 0) {
       protocol = https;
     } else {
@@ -145,13 +143,17 @@ const getList = () => {
     request.get(`${url}/api/group/list`)
       .then(async (body) => {
         if (body) {
-          let projects = body;
-          let arr = [];
-          for (let i=0; i<projects.length; i++) {
-            let list = await getProject(url, projects[i]._id);
-            arr.push(...list);
+          if (body instanceof Array) {
+            let projects = body;
+            let arr = [];
+            for (let i=0; i<projects.length; i++) {
+              let list = await getProject(url, projects[i]._id);
+              arr.push(...list);
+            }
+            resolve(arr);
+          } else {
+            reject(new Error(body.errmsg));
           }
-          resolve(arr);
         } else {
           reject(new Error("请检查项目地址是否正确"));
         }
@@ -263,10 +265,12 @@ window.exports = {
   "update": {
     mode: "none",
     args: {
-      enter: (action, callbackSetList) => {
+      enter: () => {
         utools.hideMainWindow();
-        getAllInterface(callbackSetList);
-        utools.outPlugin();
+        getAllInterface(() => {
+          utools.showNotification("更新接口完成");
+          utools.outPlugin();
+        });
       }
     }
   },
