@@ -1,18 +1,86 @@
 const http = require("http");
+const https = require("https");
 const querystring = require("querystring");
 
 var lists = [];
+let protocol;
+let cookie;
 
-const _request = (options) => {
+const login = () => {
+  return new Promise((resolve, reject) => {
+    let email = utools.db.get('email').data;
+    let password = utools.db.get('password').data;
+    if (!email) {
+      reject(new Error("请先输入email"));
+      return;
+    }
+    if (!password) {
+      reject(new Error("请先输入password"));
+      return;
+    }
+    let url = utools.db.get('project').data;
+    if (url.indexOf("https") === 0) {
+      protocol = https;
+    } else {
+      protocol = http;
+    }
+    const req = protocol.request(`${url}/api/user/login_by_ldap`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json;charset=UTF-8",
+      }
+    }, (res) => {
+      let rawData = "";
+      res.on("data", (chunk) => {
+        rawData += chunk;
+      }).on("end", () => {
+        let data = JSON.parse(rawData);
+        let errcode = data.errcode;
+        if (errcode !== 0) {
+          reject(data.errmsg);
+        } else {
+          let cookies = res.headers['set-cookie'];
+          let arr = [];
+          if (cookies && cookies.length > 0) {
+            cookies.forEach((item) => {
+              arr.push(item.split(";")[0]);
+            });
+            cookie = arr.join("; ");
+            resolve(cookie);
+          }
+        }
+      });
+    });
+    req.on('error', (err) => {
+      reject(err.message);
+    });
+    req.write(JSON.stringify({
+      email,
+      password
+    }));
+    req.end();
+  });
+}
+
+const _request = async (options) => {
   options.headers = options.headers || {};
-  let cookie = utools.db.get('cookie');
-  if (cookie) {
-    options.headers.Cookie = cookie.data;
+  if (!cookie) {
+    cookie = await login().catch((err) => {
+      utools.showNotification(err.message);
+    });
+  }
+  if (!cookie) {
+    return;
   } else {
-    utools.showNotification("请先输入cookie");
+    options.headers.Cookie = cookie;
   }
   return new Promise((resolve, reject) => {
-    const req = http.request(options.url, {
+    if (options.url.indexOf("https") === 0) {
+      protocol = https;
+    } else {
+      protocol = http;
+    }
+    const req = protocol.request(options.url, {
       method: options.method,
       headers: options.headers
     }, (res) => {
@@ -22,9 +90,9 @@ const _request = (options) => {
         try {
           let jsonData = JSON.parse(rawData);
           if (jsonData.data) {
-            resolve(rawData);
+            resolve(jsonData.data);
           } else {
-            reject(rawData);
+            resolve(jsonData);
           }
         } catch(e) {
           resolve(rawData);
@@ -32,7 +100,7 @@ const _request = (options) => {
       });
     });
     req.on('error', (err) => {
-      utools.showNotification("请检查yapi地址或cookie是否正确");
+      utools.showNotification(err.message);
       reject();
     });
     req.write(querystring.stringify(options.data));
@@ -62,7 +130,7 @@ const getProject = (url, id) => {
   return new Promise((resolve, reject) => {
     request.get(`${url}/api/project/list?group_id=${id}&page=1&limit=100`)
       .then((body) => {
-        let list = JSON.parse(body).data.list;
+        let list = body.list;
         resolve(list);
       })
       .catch((e) => {
@@ -75,21 +143,18 @@ const getList = () => {
   return new Promise((resolve, reject) => {
     let url = utools.db.get('project').data;
     request.get(`${url}/api/group/list`)
-      .then((body) => {
-        let projects = JSON.parse(body).data;
-        let promiseArr = [];
-        projects.forEach((item) => {
-          promiseArr.push(getProject(url, item._id));
-        });
-        Promise.all(promiseArr).then((data) => {
+      .then(async (body) => {
+        if (body) {
+          let projects = body;
           let arr = [];
-          data.forEach((item) => {
-            item.forEach((it) => {
-              arr.push(it);
-            });
-          });
+          for (let i=0; i<projects.length; i++) {
+            let list = await getProject(url, projects[i]._id);
+            arr.push(...list);
+          }
           resolve(arr);
-        });
+        } else {
+          reject(new Error("请检查项目地址是否正确"));
+        }
       })
       .catch((err) => {
         reject(err);
@@ -102,7 +167,7 @@ const getInterface = (project_id) => {
     let url = utools.db.get('project').data;
     request.get(`${url}/api/interface/list?page=1&limit=200&project_id=${project_id}`)
       .then((body) => {
-        let list = JSON.parse(body).data.list;
+        let list = body.list;
         resolve(list);
       })
       .catch((e) => {
@@ -147,11 +212,16 @@ const getAllInterface = (callbackSetList) => {
         obj._rev = dbLists._rev;
       }
       utools.db.put(obj);
+      cookie = "";
     });
   }).catch((err) => {
     try {
       err = JSON.parse(err).errmsg;
-    } catch(e) {}
+    } catch(e) {
+      if (typeof err === "object") {
+        err = err.message;
+      }
+    }
     utools.showNotification(err);
   });
 }
@@ -200,7 +270,7 @@ window.exports = {
       }
     }
   },
-  "cookie": {
+  "email": {
     mode: "list",
     args: {
       search: (action, searchWord, callbackSetList) => {
@@ -211,18 +281,43 @@ window.exports = {
       },
       select: (action, itemData) => {
         utools.hideMainWindow();
-        let cookie = utools.db.get('cookie');
+        let email = utools.db.get('email');
         let obj = {
-          _id: 'cookie',
+          _id: 'email',
           data: itemData.title
         }
-        if (cookie) {
-          obj._rev = cookie._rev;
+        if (email) {
+          obj._rev = email._rev;
         }
         utools.db.put(obj);
         utools.outPlugin();
       },
-      placeholder: "请输入yapi登录后的cookie值"
+      placeholder: "请输入yapi登录的邮箱"
+    }
+  },
+  "password": {
+    mode: "list",
+    args: {
+      search: (action, searchWord, callbackSetList) => {
+        callbackSetList([{
+          title: searchWord,
+          description: ''
+        }]);
+      },
+      select: (action, itemData) => {
+        utools.hideMainWindow();
+        let password = utools.db.get('password');
+        let obj = {
+          _id: 'password',
+          data: itemData.title
+        }
+        if (password) {
+          obj._rev = password._rev;
+        }
+        utools.db.put(obj);
+        utools.outPlugin();
+      },
+      placeholder: "请输入yapi登录的密码"
     }
   },
   "project": {

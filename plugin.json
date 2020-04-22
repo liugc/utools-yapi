@@ -20,16 +20,22 @@
       "cmds": ["YapiUpdate"]
     },
     {
-      "code": "cookie",
-      "explain": "设置cookie",
-      "icon": "res/cookie.png",
-      "cmds": ["YapiCookie"]
+      "code": "email",
+      "explain": "设置email",
+      "icon": "res/email.png",
+      "cmds": ["YapiEmail"]
+    },
+    {
+      "code": "password",
+      "explain": "设置password",
+      "icon": "res/password.png",
+      "cmds": ["YapiPassword"]
     },
     {
       "code": "project",
       "explain": "设置项目地址",
       "icon": "res/url.png",
-      "cmds": ["YapiProject"]
+      "cmds": ["YapiUrl"]
     }
   ]
 }
