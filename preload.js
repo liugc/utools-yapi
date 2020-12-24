@@ -126,7 +126,7 @@ let request = {
 
 const getProject = (url, id) => {
   return new Promise((resolve, reject) => {
-    request.get(`${url}/api/project/list?group_id=${id}&page=1&limit=100`)
+    request.get(`${url}/api/project/list?group_id=${id}&page=1&limit=100000`)
       .then((body) => {
         let list = body.list;
         resolve(list);
@@ -167,7 +167,7 @@ const getList = () => {
 const getInterface = (project_id) => {
   return new Promise((resolve, reject) => {
     let url = utools.db.get('project').data;
-    request.get(`${url}/api/interface/list?page=1&limit=200&project_id=${project_id}`)
+    request.get(`${url}/api/interface/list?page=1&limit=200000&project_id=${project_id}`)
       .then((body) => {
         let list = body.list;
         resolve(list);
